@@ -4,10 +4,47 @@
 import requests
 import re
 import json
+import os
 
 from station import stations_dict
 
-station_start_end_set = set()
+class clocktime:
+    def __init__(self, h, m = None):
+        if m == None:
+            text = h
+            h, m = self.str2ct(text)
+        if h >= 24 or h < 0 or m >= 60 or m < 0:
+            print 'error: illegal hour or minute'
+            print 'h:', h
+            print 'm:', m
+            return
+        self.hour = h
+        self.min = m
+
+
+    def str2ct(self, text):
+        t = text.split(':')
+        if len(t) != 2:
+            return 0, 0
+        try:
+            h = int(t[0])
+            m = int(t[1])
+        except ValueError as err:
+            print 'ValueError in clocktime class:', err
+            return 0, 0
+        return h, m
+
+    def minus(self, lt):
+        if self.min < lt.min:
+            m = self.min + 60
+            h = self.hour - 1
+        else:
+            m = self.min
+            h = self.hour
+        if h < 0:
+            h += 24
+        return (h - lt.hour) * 60 + (m - lt.min)
+
 train_list_url = 'https://kyfw.12306.cn/otn/resources/js/query/train_list.js?scriptVersion=1.0'
 init_url = 'https://kyfw.12306.cn/otn/queryTrainInfo/init'
 HEADERS = {'Accept': 'text/html, application/xhtml+xml, image/jxr, */*',
@@ -30,24 +67,6 @@ def getTrain_list():
                 if chunk:  
                     of.write(chunk)  
   
-  
-#分析train_list.txt文件 得出火车 出发站到终点站的数据  
-def trainListStartToEnd():  
-    global station_start_end_set  
-    with open('train_list.txt','rb') as of:  
-        text=of.readline()  
-        tt=text.decode("utf-8")  
-        ss=tt.replace("},{","}\n{").replace("2018-","\n").replace("[","\n").split("\n")  
-        m_list=list()  
-        for s in ss:  
-            pattern = re.compile(u'([\u2E80-\u9FFF]+-[\u2E80-\u9FFF]+)')
-            match = pattern.search(s)  
-            if match:  
-                m_list.append(match.group(1))  
-        station_start_end_set=set(m_list)
-        
-        
-        #https://kyfw.12306.cn/otn/resources/js/framework/station_name.js?station_version=1.9046
 
 def getStationCode():
     #关闭https证书验证警告
@@ -59,38 +78,7 @@ def getStationCode():
     result = re.findall(pattern,r.text)
     station = dict(result)
     print station
-#利用出发站到终点站 爬取期间的列车数据  
-def getTrainNoList(back_date,train_date,from_station,from_station_name,to_station,to_station_name):  
-    post_data= {'back_train_date':back_date,  
-                '_json_att':"",'flag':'dc',  
-                'leftTicketDTO.from_station':from_station,  
-                'leftTicketDTO.to_station':to_station,  
-                'leftTicketDTO.from_station_name':from_station_name,  
-                'leftTicketDTO.to_station_name':to_station_name,  
-                'leftTicketDTO.train_date':train_date,  
-                'pre_step_flag':'index',  
-                'purpose_code':'ADULT'}  
-  
-    #init_resp=requests.post(init_url,data=post_data,headers=HEADERS,allow_redirects=True,verify=False)  
-    #cookies=init_resp.cookies  
-    #cookies.set('_jc_save_fromStation', from_station_name+','+from_station, domain='kyfw.12306.cn', path='/')  
-    #cookies.set('_jc_save_toStation', to_station_name+','+to_station, domain='kyfw.12306.cn', path='/')  
-    #cookies.set('_jc_save_fromDate', train_date, domain='kyfw.12306.cn', path='/')  
-    #cookies.set('_jc_save_toDate', back_date, domain='kyfw.12306.cn', path='/')  
-    #cookies.set('_jc_save_wfdc_flag', 'dc', domain='kyfw.12306.cn', path='/')  
-    query_url = 'https://kyfw.12306.cn/otn/leftTicket/queryZ?'
-    url=query_url+"leftTicketDTO.train_date="+train_date+"&leftTicketDTO.from_station="+from_station+"&leftTicketDTO.to_station="+to_station+"&purpose_codes=ADULT"  
-    print url
-    try:  
-        response = requests.get(url, headers=HEADERS, allow_redirects=True,verify=False,timeout=10)  
-        data=""  
-        if response.status_code==200:  
-            data=response.content  
-        data=data.decode("UTF-8")  
-        return data
-    except  Exception as err:  
-        print 'getTrainNoList error 获取车次列表错误 日期'+train_date+'从'+from_station_name+'到'+to_station_name+' :%s' % err  
-        return None
+
         
 def get_query_url(text):
     '''
@@ -117,7 +105,7 @@ def get_query_url(text):
         'leftTicketDTO.to_station={}&'
         'purpose_codes=ADULT'
     ).format(date, from_station, to_station)
-    print url
+    #print url
     
     return url
 
@@ -132,10 +120,9 @@ def query_train_info(url):
         r = requests.get(url, verify=False)
         # 获取返回的json数据里的data字段的result结果
         print 'mark'
-        print r.status_code
+        if r.status_code != 200:
+            return ['Error: status code is %d' % r.status_code]
         raw_trains = json.loads(r.content)['data']['result']
-
-        print r'len(raw_trains):', len(raw_trains)
         
         for raw_train in raw_trains:
             # 循环遍历每辆列车的信息
@@ -180,7 +167,8 @@ def query_train_info(url):
         return u'输出信息有误，请重新输入'
         
         
-if __name__ == '__main__':
+
+def main():
     #getTrain_list()
     #trainListStartToEnd()
     #for x in station_start_end_set:
@@ -194,11 +182,49 @@ if __name__ == '__main__':
     print code_dict[u'AOH']
     url = get_query_url(u'2018-02-02 武汉 南京')
     
-    #info = query_train_info(url)
-    #print 'len(info_list):', len(info)
-    #for i in info:
-    #    print i, '\n' + '=' * 20
-    #data = getTrainNoList('2018-02-10', '2018-02-02', 'ASY','1', 'AEM', '2')
-    #print data
-    #永寿    ASY
-#羊者窝  AEM
+    info = query_train_info(url)
+    print 'len(info_list):', len(info)
+    print '\n' * 2 + '=' * 20
+    for i in info[0:10]:
+        print i, '\n' + '=' * 20
+
+
+if __name__ == '__main__':
+    #getTrain_list()
+    with open('train_list.txt', 'rb') as f:
+        train_list = f.readlines()
+    train_list = train_list[0][16::]
+    train_list = json.loads(train_list)
+    date = train_list.keys()[0]
+    print 'date:', date
+    train_list = train_list[date]
+    print train_list.keys()
+    for trainType in train_list.keys():
+        trains = train_list[trainType]
+        print len(trains)
+        for train in trains:
+            station_train_code = train[u'station_train_code']
+            train_no = train[u'train_no']
+            pattern = re.compile(r'\((.*)-(.*)\)')
+            match = pattern.search(station_train_code)
+            from_station_name = match.groups()[0]
+            to_station_name = match.groups()[1]
+            try:
+                from_station = stations_dict[from_station_name]
+                to_station = stations_dict[to_station_name]
+            except KeyError as e:
+                print e
+                os.system('pause')
+                break
+            url = (
+                'https://kyfw.12306.cn/otn/czxx/queryByTrainNo?''train_no={}&'
+                'from_station_telecode={}&'
+                'to_station_telecode={}&'
+                'depart_date={}'
+            ).format(train_no, from_station, to_station, date)
+            print url
+            r = requests.get(url, verify=False)
+            data = json.loads(r.content)[u'data'][u'data']
+            for i in range(len(data)):
+                print data[i][u'station_no'], data[i]['station_name'], data[i][u'arrive_time'], data[i][u'start_time']
+            os.system('pause')
