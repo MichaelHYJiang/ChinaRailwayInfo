@@ -12,6 +12,7 @@ import requests
 
 TRAIN_LIST_FILE = 'train_list.txt'
 TRAIN_LIST_URL = 'https://kyfw.12306.cn/otn/resources/js/query/train_list.js?scriptVersion=1.0'
+STATION_CODE_URL = 'https://kyfw.12306.cn/otn/resources/js/framework/station_name.js?station_version=1.9046'
 
 class ClockTime:
     """
@@ -65,7 +66,10 @@ class ClockTime:
         return (h - lt.hour) * 60 + (m - lt.min)
 
 class TrainList:
-
+    """This class acquires a list of recent trains, 
+    randomly pick one date,
+    and parse the result of that day into a dictionary.
+    """
 
     def __init__(self):
         if TRAIN_LIST_FILE not in os.listdir('.'):
@@ -99,19 +103,19 @@ HEADERS = {'Accept': 'text/html, application/xhtml+xml, image/jxr, */*',
                'Host':'zhannei.baidu.com',
                'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
 
+class StationCode():
 
-def getStationCode():
-    #关闭https证书验证警告
-    requests.packages.urllib3.disable_warnings()
-    # 12306的城市名和城市代码js文件url
-    url = 'https://kyfw.12306.cn/otn/resources/js/framework/station_name.js?station_version=1.9046'
-    r = requests.get(url,verify=False)
-    pattern = u'([\u4e00-\u9fa5]+)\|([A-Z]+)'
-    result = re.findall(pattern,r.text)
-    station = dict(result)
-    print station
-
-        
+    def get_station_code():
+        requests.packages.urllib3.disable_warnings()
+        r = requests.get(STATION_CODE_URL, verify = False)
+        pattern = u'([\u4e00-\u9fa5]+)\|([A-Z]+)'
+        result = re.findall(pattern, r.text)
+        station = dict(result)
+        with open('station.py', 'wb') as f:
+            f.write('stations_dict = ' + str(station))
+        with open('__init__.py') as f:
+            f.write('')
+            
 def get_query_url(text):
     '''
     返回调用api的url链接
