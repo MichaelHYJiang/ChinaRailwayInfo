@@ -104,3 +104,4 @@ ENV/
 train_list.txt
 __init__.py
 station.py
+test.txt

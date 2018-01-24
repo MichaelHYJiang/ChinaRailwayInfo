@@ -73,13 +73,16 @@ class TrainList:
 
     def __init__(self):
         if TRAIN_LIST_FILE not in os.listdir('.'):
+            print 'Acquring train list from web...'
             self.get_train_list()
         with open('train_list.txt', 'rb') as f:
+            print 'Parsing train list...'
             train_list = f.readlines()
         train_list = train_list[0][16::]
         train_list = json.loads(train_list)
         self.date = train_list.keys()[int(np.random.rand() * len(train_list))]
         self.train_list = train_list[self.date]
+        print 'Parsing train list done.'
         
     def get_train_list(self):
         """Download train list data and save them in TRAIN_LIST_FILE
@@ -105,7 +108,20 @@ HEADERS = {'Accept': 'text/html, application/xhtml+xml, image/jxr, */*',
 
 class StationCode():
 
-    def get_station_code():
+
+    def __init__(self):
+        if 'station.py' not in os.listdir('.'):
+            self.get_station_code()
+        try:
+            from station import stations_dict
+            print 'Using cached station codes.'
+        except ImportError:
+            print 'Acquring station codes from web...'
+            self.get_station_code()
+            from station import stations_dict
+        self.codes = stations_dict
+
+    def get_station_code(self):
         requests.packages.urllib3.disable_warnings()
         r = requests.get(STATION_CODE_URL, verify = False)
         pattern = u'([\u4e00-\u9fa5]+)\|([A-Z]+)'
@@ -113,7 +129,7 @@ class StationCode():
         station = dict(result)
         with open('station.py', 'wb') as f:
             f.write('stations_dict = ' + str(station))
-        with open('__init__.py') as f:
+        with open('__init__.py', 'wb') as f:
             f.write('')
             
 def get_query_url(text):
@@ -233,9 +249,12 @@ if __name__ == '__main__':
     ###
     print train_list.train_list.keys()
     print train_list.date
-    a = '''
-    for trainType in train_list.keys():
-        trains = train_list[trainType]
+    
+    station_code = StationCode()
+    print station_code.codes[u'江宁']
+    
+    for trainType in train_list.train_list.keys():
+        trains = train_list.train_list[trainType]
         print len(trains)
         for train in trains:
             station_train_code = train[u'station_train_code']
@@ -245,8 +264,8 @@ if __name__ == '__main__':
             from_station_name = match.groups()[0]
             to_station_name = match.groups()[1]
             try:
-                from_station = stations_dict[from_station_name]
-                to_station = stations_dict[to_station_name]
+                from_station = station_code.codes[from_station_name]
+                to_station = station_code.codes[to_station_name]
             except KeyError as e:
                 print e
                 os.system('pause')
@@ -256,9 +275,14 @@ if __name__ == '__main__':
                 'from_station_telecode={}&'
                 'to_station_telecode={}&'
                 'depart_date={}'
-            ).format(train_no, from_station, to_station, date)
+            ).format(train_no, from_station, to_station, train_list.date)
             #print url
-            r = requests.get(url, verify=False)
+            try:
+                r = requests.get(url, verify=False)
+            except Error as e:
+                print e
+                os.system('pause')
+                continue
             print r.status_code
             data = json.loads(r.content)[u'data'][u'data']
             print len(data)
@@ -266,11 +290,13 @@ if __name__ == '__main__':
                 print station_train_code
                 continue
             print data[0][u'station_name'],
-            last = clocktime(data[0][u'start_time'])
+            last = ClockTime(data[0][u'start_time'])
             for i in range(1, len(data)):
-                now = clocktime(data[i][u'arrive_time'])
+                now = ClockTime(data[i][u'arrive_time'])
                 delta = now.minus(last)
-                last = clocktime(data[i][u'start_time'])
+                with open('test.txt', 'a') as f:
+                    f.write(str(delta) + '\n')
+                last = ClockTime(data[i][u'start_time'])
                 print '--', delta, '--', data[i][u'station_name'],
             print ''
-            os.system('pause')'''
+            #os.system('pause')'''
