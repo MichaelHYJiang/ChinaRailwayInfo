@@ -191,11 +191,12 @@ def main():
 
 if __name__ == '__main__':
     #getTrain_list()
+    requests.packages.urllib3.disable_warnings()
     with open('train_list.txt', 'rb') as f:
         train_list = f.readlines()
     train_list = train_list[0][16::]
     train_list = json.loads(train_list)
-    date = train_list.keys()[0]
+    date = train_list.keys()[10]
     print 'date:', date
     train_list = train_list[date]
     print train_list.keys()
@@ -222,9 +223,20 @@ if __name__ == '__main__':
                 'to_station_telecode={}&'
                 'depart_date={}'
             ).format(train_no, from_station, to_station, date)
-            print url
+            #print url
             r = requests.get(url, verify=False)
+            print r.status_code
             data = json.loads(r.content)[u'data'][u'data']
-            for i in range(len(data)):
-                print data[i][u'station_no'], data[i]['station_name'], data[i][u'arrive_time'], data[i][u'start_time']
+            print len(data)
+            if len(data) == 0:
+                print station_train_code
+                continue
+            print data[0][u'station_name'],
+            last = clocktime(data[0][u'start_time'])
+            for i in range(1, len(data)):
+                now = clocktime(data[i][u'arrive_time'])
+                delta = now.minus(last)
+                last = clocktime(data[i][u'start_time'])
+                print '--', delta, '--', data[i][u'station_name'],
+            print ''
             os.system('pause')
