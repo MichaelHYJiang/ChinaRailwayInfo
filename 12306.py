@@ -1,15 +1,34 @@
 #!usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import requests
 import re
 import json
 import os
 
-from station import stations_dict
+import numpy as np
+import requests
 
-class clocktime:
+#from station import stations_dict
+
+TRAIN_LIST_FILE = 'train_list.txt'
+TRAIN_LIST_URL = 'https://kyfw.12306.cn/otn/resources/js/query/train_list.js?scriptVersion=1.0'
+
+class ClockTime:
+    """
+    ClockTime class stores two numbers indicating hours and minutes.
+    Two instances of ClockTime can calculate together.
+    e.g.:
+        t1 = ClockTime(10, 20)
+        t2 = ClockTime("11:19")
+        past_time = t2.minus(t1) # which is 59
+    """
+
     def __init__(self, h, m = None):
+        """
+        Constructor of the class, that can either take two parameters
+        as hour and minuts; or take one parameter that is a string of 
+        format "%d:%d"
+        """
         if m == None:
             text = h
             h, m = self.str2ct(text)
@@ -45,7 +64,33 @@ class clocktime:
             h += 24
         return (h - lt.hour) * 60 + (m - lt.min)
 
-train_list_url = 'https://kyfw.12306.cn/otn/resources/js/query/train_list.js?scriptVersion=1.0'
+class TrainList:
+
+
+    def __init__(self):
+        if TRAIN_LIST_FILE not in os.listdir('.'):
+            self.get_train_list()
+        with open('train_list.txt', 'rb') as f:
+            train_list = f.readlines()
+        train_list = train_list[0][16::]
+        train_list = json.loads(train_list)
+        self.date = train_list.keys()[int(np.random.rand() * len(train_list))]
+        self.train_list = train_list[self.date]
+        
+    def get_train_list(self):
+        """Download train list data and save them in TRAIN_LIST_FILE
+        """
+        requests.packages.urllib3.disable_warnings()
+        requests.adapters.DEFAULT_RETRIES = 5
+        response = requests.get(TRAIN_LIST_URL, stream = True,verify = False)
+        status = response.status_code
+        if status == 200:
+            with open(TRAIN_LIST_FILE, 'wb') as of:
+                for chunk in response.iter_content(chunk_size = 102400):
+                    if chunk:
+                        of.write(chunk)
+    # TODO
+
 init_url = 'https://kyfw.12306.cn/otn/queryTrainInfo/init'
 HEADERS = {'Accept': 'text/html, application/xhtml+xml, image/jxr, */*',
                'Accept - Encoding':'gzip, deflate',
@@ -54,19 +99,6 @@ HEADERS = {'Accept': 'text/html, application/xhtml+xml, image/jxr, */*',
                'Host':'zhannei.baidu.com',
                'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36 Edge/15.15063'}
 
-
-#下载所有的车次数据  保存为 train_list.txt文件  
-def getTrain_list():  
-    requests.packages.urllib3.disable_warnings()
-    requests.adapters.DEFAULT_RETRIES = 5  
-    response = requests.get(train_list_url, stream=True,verify=False)  
-    status = response.status_code  
-    if status == 200:  
-        with open('train_list.txt', 'wb') as of:  
-            for chunk in response.iter_content(chunk_size=102400):  
-                if chunk:  
-                    of.write(chunk)  
-  
 
 def getStationCode():
     #关闭https证书验证警告
@@ -192,14 +224,12 @@ def main():
 if __name__ == '__main__':
     #getTrain_list()
     requests.packages.urllib3.disable_warnings()
-    with open('train_list.txt', 'rb') as f:
-        train_list = f.readlines()
-    train_list = train_list[0][16::]
-    train_list = json.loads(train_list)
-    date = train_list.keys()[10]
-    print 'date:', date
-    train_list = train_list[date]
-    print train_list.keys()
+    train_list = TrainList()
+    
+    ###
+    print train_list.train_list.keys()
+    print train_list.date
+    a = '''
     for trainType in train_list.keys():
         trains = train_list[trainType]
         print len(trains)
@@ -239,4 +269,4 @@ if __name__ == '__main__':
                 last = clocktime(data[i][u'start_time'])
                 print '--', delta, '--', data[i][u'station_name'],
             print ''
-            os.system('pause')
+            os.system('pause')'''
