@@ -100,5 +100,7 @@ ENV/
 # mypy
 .mypy_cache/
 
-#train list
+# This project
 train_list.txt
+__init__.py
+station.py
