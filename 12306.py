@@ -258,13 +258,14 @@ if __name__ == '__main__':
     station_code = StationCode()
     print station_code.codes[u'江宁']
     
+    pattern = re.compile(r'\((.*)-(.*)\)')
     for trainType in train_list.train_list.keys():
         trains = train_list.train_list[trainType]
-        print len(trains)
+        print 'trainType', trainType, 'has', len(trains), 'trains'
         for train in trains:
             station_train_code = train[u'station_train_code']
             train_no = train[u'train_no']
-            pattern = re.compile(r'\((.*)-(.*)\)')
+            print train_no,
             match = pattern.search(station_train_code)
             from_station_name = match.groups()[0]
             to_station_name = match.groups()[1]
@@ -278,9 +279,9 @@ if __name__ == '__main__':
                     'depart_date={}'
                 ).format(train_no, from_station, to_station, train_list.date)
             #print url
-                time.sleep(2)
-                r = requests.get(url, verify = False)
-                print r.status_code
+                #time.sleep(2)
+                r = requests.get(url, verify = False, timeout = 10)
+                print r.status_code,
                 data = json.loads(r.content)[u'data'][u'data']
                 print len(data)
                 if len(data) == 0:
@@ -295,7 +296,7 @@ if __name__ == '__main__':
                         f.write('(0data)station_train_code: ' + station_train_code.encode('utf8'))
                         f.write('\n')
                     continue
-                print data[0][u'station_name'],
+                #print data[0][u'station_name'],
                 last = ClockTime(data[0][u'start_time'])
                 for i in range(1, len(data)):
                     now = ClockTime(data[i][u'arrive_time'])
@@ -303,8 +304,8 @@ if __name__ == '__main__':
                     with open('test.txt', 'a') as f:
                         f.write(str(delta) + '\n')
                     last = ClockTime(data[i][u'start_time'])
-                    print '--', delta, '--', data[i][u'station_name'],
-                print ''
+                    #print '--', delta, '--', data[i][u'station_name'],
+                #print ''
             except Exception,ex:  
                 print Exception, ':', ex
                 print station_train_code
@@ -321,4 +322,5 @@ if __name__ == '__main__':
                     f.write(station_train_code.encode('utf8'))
                     f.write('\n')
                 continue
+        print 'trainType', trainType, ' is done.'
             #os.system('pause')'''
