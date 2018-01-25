@@ -4,6 +4,7 @@
 import re
 import json
 import os
+import time
 
 import numpy as np
 import requests
@@ -250,6 +251,10 @@ if __name__ == '__main__':
     print train_list.train_list.keys()
     print train_list.date
     
+    if 'test.txt' in os.listdir('.'):
+        os.system('del test.txt')
+    if 'log.txt' in os.listdir('.'):
+        os.system('del log.txt')
     station_code = StationCode()
     print station_code.codes[u'江宁']
     
@@ -266,37 +271,54 @@ if __name__ == '__main__':
             try:
                 from_station = station_code.codes[from_station_name]
                 to_station = station_code.codes[to_station_name]
-            except KeyError as e:
-                print e
-                os.system('pause')
-                break
-            url = (
-                'https://kyfw.12306.cn/otn/czxx/queryByTrainNo?''train_no={}&'
-                'from_station_telecode={}&'
-                'to_station_telecode={}&'
-                'depart_date={}'
-            ).format(train_no, from_station, to_station, train_list.date)
+                url = (
+                    'https://kyfw.12306.cn/otn/czxx/queryByTrainNo?''train_no={}&'
+                    'from_station_telecode={}&'
+                    'to_station_telecode={}&'
+                    'depart_date={}'
+                ).format(train_no, from_station, to_station, train_list.date)
             #print url
-            try:
-                r = requests.get(url, verify=False)
-            except Error as e:
-                print e
-                os.system('pause')
-                continue
-            print r.status_code
-            data = json.loads(r.content)[u'data'][u'data']
-            print len(data)
-            if len(data) == 0:
+                time.sleep(2)
+                r = requests.get(url, verify = False)
+                print r.status_code
+                data = json.loads(r.content)[u'data'][u'data']
+                print len(data)
+                if len(data) == 0:
+                    with open('log.txt', 'a') as f:
+                        t = time.localtime()
+                        f.write("%s-%s-%s %s:%s:%s>>" % (str(t.tm_year).zfill(4), \
+                        str(t.tm_mon).zfill(2), \
+                        str(t.tm_mday).zfill(2), \
+                        str(t.tm_hour).zfill(2), \
+                        str(t.tm_min).zfill(2), \
+                        str(t.tm_sec).zfill(2)))
+                        f.write('(0data)station_train_code: ' + station_train_code.encode('utf8'))
+                        f.write('\n')
+                    continue
+                print data[0][u'station_name'],
+                last = ClockTime(data[0][u'start_time'])
+                for i in range(1, len(data)):
+                    now = ClockTime(data[i][u'arrive_time'])
+                    delta = now.minus(last)
+                    with open('test.txt', 'a') as f:
+                        f.write(str(delta) + '\n')
+                    last = ClockTime(data[i][u'start_time'])
+                    print '--', delta, '--', data[i][u'station_name'],
+                print ''
+            except Exception,ex:  
+                print Exception, ':', ex
                 print station_train_code
+                with open('log.txt', 'a') as f:
+                    t = time.localtime()
+                    f.write("%s-%s-%s %s:%s:%s>>" % (str(t.tm_year).zfill(4), \
+                    str(t.tm_mon).zfill(2), \
+                    str(t.tm_mday).zfill(2), \
+                    str(t.tm_hour).zfill(2), \
+                    str(t.tm_min).zfill(2), \
+                    str(t.tm_sec).zfill(2)))
+                    f.write(str(ex) + ' ')
+                    f.write('station_train_code: ')
+                    f.write(station_train_code.encode('utf8'))
+                    f.write('\n')
                 continue
-            print data[0][u'station_name'],
-            last = ClockTime(data[0][u'start_time'])
-            for i in range(1, len(data)):
-                now = ClockTime(data[i][u'arrive_time'])
-                delta = now.minus(last)
-                with open('test.txt', 'a') as f:
-                    f.write(str(delta) + '\n')
-                last = ClockTime(data[i][u'start_time'])
-                print '--', delta, '--', data[i][u'station_name'],
-            print ''
             #os.system('pause')'''
