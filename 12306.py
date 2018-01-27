@@ -62,9 +62,7 @@ class ClockTime:
         else:
             m = self.min
             h = self.hour
-        if h < 0:
-            h += 24
-        return (h - lt.hour) * 60 + (m - lt.min)
+        return ((h - lt.hour) % 24) * 60 + (m - lt.min)
 
 class TrainList:
     """This class acquires a list of recent trains, 
@@ -250,6 +248,8 @@ if __name__ == '__main__':
     ###
     print train_list.train_list.keys()
     print train_list.date
+    with open('log.txt', 'a') as f:
+        f.write(train_list.date.encode('utf8') + '\n')
     
     if 'test.txt' in os.listdir('.'):
         os.system('del test.txt')
